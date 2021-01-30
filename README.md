@@ -1,14 +1,50 @@
-# cypress-test-tiny
+# Cypress opening new tabs causes cookies to be introduced into subsequent tests
 
-> Tiny Cypress E2E test case
+Cookies are seemingly coming out of nowhere causing independent tests to fail.
 
-Build status | Name | Description
-:--- | :--- | :---
-[![CircleCI](https://circleci.com/gh/cypress-io/cypress-test-tiny.svg?style=svg)](https://circleci.com/gh/cypress-io/cypress-test-tiny) | CircleCI | Linux & Mac & Win 64
-[![Build status](https://ci.appveyor.com/api/projects/status/er7wpte7j00fsm8d/branch/master?svg=true)](https://ci.appveyor.com/project/cypress-io/cypress-test-tiny-fitqm/branch/master) | AppVeyor | Windows 32-bit
-[![Build status](https://ci.appveyor.com/api/projects/status/bpwo4jpue61xsbi5/branch/master?svg=true)](https://ci.appveyor.com/project/cypress-io/cypress-test-tiny/branch/master) | AppVeyor | Windows 64-bit
-[ ![Codeship Status for cypress-io/cypress-test-tiny](https://app.codeship.com/projects/98843020-d6d6-0135-402d-5207bc7a4d86/status?branch=master)](https://app.codeship.com/projects/263289) | Codeship Basic | Linux Docker
+## Installing
 
-## Important
+```
+git clone https://github.com/Qarj/cypress-test-tiny.git
+cd cypress-test-tiny
+npm i
+```
 
-Note that this project **DOES NOT** include Cypress dependency in the [package.json](package.json). The reason for such omission is that we use this project to test every Cypress build and do not want to spend time installing `cypress@x.x.x` just to immediately install and test `cypress@y.y.y`. Which means when submitting pull requests with a bug report, please save the problematic version of Cypress in `package.json`. Simply run `npm install --save-dev cypress` or `npm i -D cypress@x.x.x` and commit the change before submitting a pull request.
+## Reproducing the problem
+
+```
+npx cypress open
+```
+
+Double click on `cookieBug.js`.
+
+## Isolating the problem
+
+In the file `cypress/integration/cookieBug.js` comment out the line
+
+```
+    causeBug();
+```
+
+and run again, all tests should run ok.
+
+## What is happening
+
+The application under test opens up new browser tabs on clicking the applicable elements.
+
+We set up a spy to check that the redirect url for the new tabs is fired and is correct.
+
+This test passes perfectly fine everytime.
+
+However the subsequent tests are getting poisoned by cookies from these new tabs.
+
+What appears to happen is this:
+* Test 1 ends as soon as it has validated the redirect
+* Test 2 now starts
+* Meanwhile, the new tabs left over from test 1 continue to load and create cookies
+* These new cookies end up appearing in Test 2
+
+My understanding of Cypress is that it cannot control anything in the new browser tabs
+due to being stuck in a security sandbox.
+
+However the reverse does not appear to be true - these detached tabs / windows can affect Cypress!
